@@ -1,6 +1,8 @@
 # Course Management System (FastAPI Backend)
 
-Бэкенд-проект на FastAPI и SQLAlchemy для платформы онлайн-курсов и управления учебным процессом.
+Комплексный бэкенд на FastAPI и SQLAlchemy для образовательной платформы с ролевой моделью доступа (JWT), AI-поиском курсов и админ-панелью.
+
+---
 
 ## 🚀 Структура проекта
 
@@ -9,104 +11,76 @@ Course-Project/
 ├── mysite/
 │   ├── admin/
 │   │   ├── __init__.py
-│   │   ├── reviews.py        # Представления SQLAdmin для моделей
-│   │   └── setup.py          # Настройка и регистрация админки
+│   │   ├── reviews.py             # Представления SQLAdmin для моделей
+│   │   └── setup.py               # Настройка и подключение админки
 │   ├── api/
 │   │   ├── __init__.py
-│   │   ├── users.py          # CRUD для пользователей (User)
-│   │   ├── categories.py     # CRUD для категорий (Category)
-│   │   ├── courses.py        # CRUD для курсов (Course)
-│   │   ├── study_groups.py   # CRUD для учебных групп (StudyGroup)
-│   │   ├── applications.py   # CRUD для заявок (Application)
-│   │   └── enrollments.py    # CRUD для зачислений (Enrollment)
+│   │   ├── users.py               # Регистрация, логин (JWT), профиль, пользователи
+│   │   ├── categories.py          # Category CRUD (доступ только ADMIN)
+│   │   ├── courses.py             # Course CRUD (доступ только TEACHER)
+│   │   ├── applications.py        # Application Create (STUDENT) & Управление (MANAGER)
+│   │   ├── study_groups.py        # StudyGroup CRUD & запись (recruiting, capacity)
+│   │   ├── enrollments.py         # Enrollment (get_queryset для студента)
+│   │   └── ai.py                  # AI Assistant (/ai/search)
+│   ├── base_knowledge/
+│   │   └── __init__.py            # База знаний образовательных направлений
+│   ├── chains/
+│   │   ├── __init__.py
+│   │   └── ai_search.py           # LangChain + Ollama цепочка AI-поиска курсов
 │   ├── database/
 │   │   ├── __init__.py
-│   │   ├── db.py             # Подключение к SQLite, сессии и Base
-│   │   ├── models.py         # SQLAlchemy модели данных
-│   │   └── schemas.py        # Pydantic схемы валидации
-│   ├── config.py             # Конфигурация и переменные окружения
+│   │   ├── db.py                  # Подключение к SQLite, Base, get_db
+│   │   ├── models.py              # Модели SQLAlchemy
+│   │   └── schemas.py             # Схемы валидации Pydantic
+│   ├── auth.py                    # JWT токены, хеширование паролей (bcrypt), зависимости ролей
+│   ├── config.py                  # Конфигурация, секреты, время жизни токенов
 │   └── __init__.py
-├── .env                      # Переменные окружения
-├── .gitignore
-├── requirements.txt          # Зависимости проекта
-├── main.py                   # Точка входа приложения
-└── course.db                 # База данных SQLite (создается автоматически)
+├── .env                           # Переменные окружения
+├── requirements.txt               # Зависимости
+├── main.py                        # Точка входа приложения
+└── course.db                      # SQLite база данных
 ```
 
-## 📋 Модели данных
+---
 
-1. **User**
-   - `id`: Уникальный идентификатор
-   - `full_name`: Полное имя
-   - `email`: Уникальный email
-   - `password`: Пароль
-   - `role`: Роль (`student`, `teacher`, `manager`, `admin`)
-   - `user_status`: Статус пользователя (`free`, `pro`)
-   - `created_at`: Дата и время создания
-   - `updated_at`: Дата и время обновления
+## 🔐 Ролевая модель доступа и права (Permissions)
 
-2. **Category**
-   - `id`: Идентификатор
-   - `category_name`: Название категории (уникальное)
+| Модель / Сущность | Действие | Разрешенная роль | Особенности и бизнес-логика |
+|---|---|---|---|
+| **Category** | Create, Read, Update, Delete | **ADMIN** | Полный CRUD доступен только администраторам. |
+| **Course** | Create, Update, Delete | **TEACHER** (или ADMIN) | Преподаватель управляет своими курсами. |
+| **Application** | Create | **STUDENT** | • `student.is_active == True` — может подать заявку на любой курс.<br>• `student.is_active == False` — разрешено **только** на бесплатные курсы (`course.status == 'free'`). |
+| **Application** | List, Detail, Update, Delete | **MANAGER** (или ADMIN) | Менеджер обрабатывает заявки, меняет статус, оставляет комментарии. |
+| **Enrollment** | List (`get_queryset`) | **STUDENT** | Студент видит **только свои** записи на обучение (`student_id == current_user.id`). Менеджеры и админы видят все. |
+| **StudyGroup** | Join / Create Enrollment | **STUDENT** | • Проверка статуса группы: только `recruiting`.<br>• Проверка лимита: текущее число активных записей `< capacity`. |
 
-3. **Course**
-   - `id`: Идентификатор
-   - `title`: Название курса
-   - `category_id`: Внешний ключ на категорию
-   - `description`: Описание курса
-   - `level`: Уровень сложности (`beginner`, `intermediate`, `advanced`)
-   - `price`: Стоимость курса
-   - `duration_weeks`: Продолжительность в неделях
-   - `is_active`: Флаг активности
-   - `status`: Статус курса (`free`, `plus`)
-   - `created_at`: Дата и время создания
-   - `updated_at`: Дата и время обновления
+---
 
-4. **StudyGroup**
-   - `id`: Идентификатор
-   - `name`: Название группы
-   - `course_id`: Внешний ключ на курс
-   - `teacher_id`: Внешний ключ на преподавателя (`User`)
-   - `starts_on`: Дата начала занятий
-   - `ends_on`: Дата окончания занятий
-   - `status`: Статус группы (`recruiting`, `active`, `completed`, `cancelled`)
-   - `created_at`: Дата и время создания
-   - `updated_at`: Дата и время обновления
+## 🔑 Аутентификация через JWT Токены
 
-5. **Application**
-   - `id`: Идентификатор
-   - `student_id`: Внешний ключ на студента (`User`)
-   - `course_id`: Внешний ключ на курс (`Course`)
-   - `manager_id`: Внешний ключ на менеджера (`User`, опционально)
-   - `comment`: Комментарий к заявке
-   - `status`: Статус заявки (`new`, `in_progress`, `accepted`, `rejected`, `cancelled`)
-   - `created_at`: Дата и время создания
-   - `updated_at`: Дата и время обновления
+1. **Регистрация**: `POST /user/register/` (принимает `full_name`, `email`, `password`, `role`, `user_status`).
+2. **Логин**: `POST /user/login/` (возвращает `access_token`, `refresh_token`, `token_type: "bearer"`).
+3. **Swagger UI Авторизация**: `POST /user/login-token` — позволяет использовать стандартную зеленую кнопку **Authorize** в правом верхнем углу Swagger UI.
+4. **Профиль текущего пользователя**: `GET /user/me/` (требует Bearer токен).
 
-6. **Enrollment**
-   - `id`: Идентификатор
-   - `student_id`: Внешний ключ на студента (`User`)
-   - `group_id`: Внешний ключ на группу (`StudyGroup`)
-   - `status`: Статус записи (`active`, `completed`, `cancelled`)
-   - `created_at`: Дата и время записи
+---
 
-## 🛠 Запуск проекта
+## 🤖 AI Search (`/ai/search`)
 
-1. Установите зависимости:
-```bash
-pip install -r requirements.txt
-```
+В модуле `mysite/chains/ai_search.py` реализована LangChain-цепочка:
+- Использует модель Ollama (`llama3.2`) и структурированный вывод (`AISearchOutputSchema`).
+- Использует базу знаний из `mysite/base_knowledge/`.
+- Системный промпт анализирует запрос пользователя, уровень подготовки и подбирает список рекомендованных программ с объяснением причин выбора.
+- При отсутствии запущенного сервиса Ollama автоматически срабатывает fallback-поиск по локальной базе данных курсов.
 
-2. Запустите сервер:
-```bash
+---
+
+## ⚙️ Запуск и работа
+
+```powershell
+cd C:\Users\User\.gemini\antigravity\scratch\Course-Project
 python main.py
 ```
-или:
-```bash
-uvicorn main:app --reload
-```
 
-3. Откройте в браузере:
-- **Swagger UI (Интерактивная документация API)**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-- **ReDoc**: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
-- **SQLAdmin Панель управления**: [http://127.0.0.1:8000/admin](http://127.0.0.1:8000/admin)
+- 📖 **Swagger UI**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- ⚙️ **SQLAdmin Панель**: [http://127.0.0.1:8000/admin](http://127.0.0.1:8000/admin)

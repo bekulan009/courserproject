@@ -3,7 +3,7 @@ from mysite.database.models import User, Category, Course, StudyGroup, Applicati
 
 
 class UserAdmin(ModelView, model=User):
-    column_list = [User.id, User.full_name, User.email, User.role, User.user_status, User.created_at]
+    column_list = [User.id, User.full_name, User.email, User.role, User.user_status, User.is_active, User.created_at]
     icon = "fa-solid fa-user"
 
 
@@ -18,7 +18,7 @@ class CourseAdmin(ModelView, model=Course):
 
 
 class StudyGroupAdmin(ModelView, model=StudyGroup):
-    column_list = [StudyGroup.id, StudyGroup.name, StudyGroup.course_id, StudyGroup.teacher_id, StudyGroup.starts_on, StudyGroup.status]
+    column_list = [StudyGroup.id, StudyGroup.name, StudyGroup.course_id, StudyGroup.teacher_id, StudyGroup.capacity, StudyGroup.starts_on, StudyGroup.status]
     icon = "fa-solid fa-users"
 
 

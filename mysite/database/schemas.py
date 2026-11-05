@@ -1,6 +1,6 @@
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, Field
 from datetime import datetime, date
-from typing import Optional
+from typing import Optional, List
 from .models import (
     UserRoleChoices,
     UserStatusChoices,
@@ -12,6 +12,32 @@ from .models import (
 )
 
 
+# ================== Token & Auth Schemas ==================
+class TokenSchema(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+
+class TokenDataSchema(BaseModel):
+    user_id: Optional[int] = None
+    email: Optional[str] = None
+    role: Optional[str] = None
+
+
+class UserLoginSchema(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class UserRegisterSchema(BaseModel):
+    full_name: str
+    email: EmailStr
+    password: str
+    role: UserRoleChoices = UserRoleChoices.student
+    user_status: UserStatusChoices = UserStatusChoices.free
+
+
 # ================== User Schemas ==================
 class UserInputSchema(BaseModel):
     full_name: str
@@ -19,6 +45,7 @@ class UserInputSchema(BaseModel):
     password: str
     role: UserRoleChoices = UserRoleChoices.student
     user_status: UserStatusChoices = UserStatusChoices.free
+    is_active: bool = True
 
 
 class UserUpdateSchema(BaseModel):
@@ -27,6 +54,7 @@ class UserUpdateSchema(BaseModel):
     password: Optional[str] = None
     role: Optional[UserRoleChoices] = None
     user_status: Optional[UserStatusChoices] = None
+    is_active: Optional[bool] = None
 
 
 class UserOutSchema(BaseModel):
@@ -35,6 +63,7 @@ class UserOutSchema(BaseModel):
     email: EmailStr
     role: UserRoleChoices
     user_status: UserStatusChoices
+    is_active: bool
     created_at: datetime
     updated_at: datetime
 
@@ -103,6 +132,7 @@ class StudyGroupInputSchema(BaseModel):
     teacher_id: int
     starts_on: date
     ends_on: Optional[date] = None
+    capacity: int = 20
     status: StudyGroupStatusChoices = StudyGroupStatusChoices.recruiting
 
 
@@ -112,6 +142,7 @@ class StudyGroupUpdateSchema(BaseModel):
     teacher_id: Optional[int] = None
     starts_on: Optional[date] = None
     ends_on: Optional[date] = None
+    capacity: Optional[int] = None
     status: Optional[StudyGroupStatusChoices] = None
 
 
@@ -122,6 +153,7 @@ class StudyGroupOutSchema(BaseModel):
     teacher_id: int
     starts_on: date
     ends_on: Optional[date] = None
+    capacity: int
     status: StudyGroupStatusChoices
     created_at: datetime
     updated_at: datetime
@@ -131,8 +163,8 @@ class StudyGroupOutSchema(BaseModel):
 
 # ================== Application Schemas ==================
 class ApplicationInputSchema(BaseModel):
-    student_id: int
     course_id: int
+    student_id: Optional[int] = None
     manager_id: Optional[int] = None
     comment: Optional[str] = None
     status: ApplicationStatusChoices = ApplicationStatusChoices.new
@@ -161,8 +193,8 @@ class ApplicationOutSchema(BaseModel):
 
 # ================== Enrollment Schemas ==================
 class EnrollmentInputSchema(BaseModel):
-    student_id: int
     group_id: int
+    student_id: Optional[int] = None
     status: EnrollmentStatusChoices = EnrollmentStatusChoices.active
 
 
@@ -180,3 +212,22 @@ class EnrollmentOutSchema(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ================== AI Search Schemas ==================
+class AISearchInputSchema(BaseModel):
+    text: str = Field(..., description="Запрос пользователя о курсе, например: Хочу выучить бэкенд на Python с нуля")
+
+
+class CourseRecommendationSchema(BaseModel):
+    title: str
+    category: str
+    level: str
+    price: float
+    status: str
+    reason: str
+
+
+class AISearchOutputSchema(BaseModel):
+    reply: str
+    recommendations: List[CourseRecommendationSchema] = []

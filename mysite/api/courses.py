@@ -1,15 +1,20 @@
 from fastapi import APIRouter, HTTPException, Depends
-from mysite.database.models import Course, Category
+from mysite.database.models import Course, Category, User
 from mysite.database.schemas import CourseOutSchema, CourseInputSchema, CourseUpdateSchema
 from mysite.database.db import get_db
+from mysite.auth import get_current_teacher, get_current_user
 from sqlalchemy.orm import Session
 from typing import List
 
-course_router = APIRouter(prefix='/course', tags=['Course'])
+course_router = APIRouter(prefix="/course", tags=["Course"])
 
 
-@course_router.post('/', response_model=CourseOutSchema)
-async def create_course(course: CourseInputSchema, db: Session = Depends(get_db)):
+@course_router.post("/", response_model=CourseOutSchema)
+async def create_course(
+    course: CourseInputSchema,
+    db: Session = Depends(get_db),
+    teacher: User = Depends(get_current_teacher),
+):
     category = db.query(Category).filter(Category.id == course.category_id).first()
     if not category:
         raise HTTPException(status_code=400, detail="Указанная категория не найдена")
@@ -21,21 +26,26 @@ async def create_course(course: CourseInputSchema, db: Session = Depends(get_db)
     return course_db
 
 
-@course_router.get('/', response_model=List[CourseOutSchema])
-async def list_courses(db: Session = Depends(get_db)):
+@course_router.get("/", response_model=List[CourseOutSchema])
+async def list_courses(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return db.query(Course).all()
 
 
-@course_router.get('/{course_id}/', response_model=CourseOutSchema)
-async def detail_course(course_id: int, db: Session = Depends(get_db)):
+@course_router.get("/{course_id}/", response_model=CourseOutSchema)
+async def detail_course(course_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     course_db = db.query(Course).filter(Course.id == course_id).first()
     if not course_db:
         raise HTTPException(status_code=404, detail="Курс не найден")
     return course_db
 
 
-@course_router.put('/{course_id}/', response_model=dict)
-async def update_course(course_id: int, course: CourseUpdateSchema, db: Session = Depends(get_db)):
+@course_router.put("/{course_id}/", response_model=dict)
+async def update_course(
+    course_id: int,
+    course: CourseUpdateSchema,
+    db: Session = Depends(get_db),
+    teacher: User = Depends(get_current_teacher),
+):
     course_db = db.query(Course).filter(Course.id == course_id).first()
     if not course_db:
         raise HTTPException(status_code=404, detail="Курс не найден")
@@ -54,8 +64,12 @@ async def update_course(course_id: int, course: CourseUpdateSchema, db: Session 
     return {"message": "Курс изменен"}
 
 
-@course_router.delete('/{course_id}/', response_model=dict)
-async def delete_course(course_id: int, db: Session = Depends(get_db)):
+@course_router.delete("/{course_id}/", response_model=dict)
+async def delete_course(
+    course_id: int,
+    db: Session = Depends(get_db),
+    teacher: User = Depends(get_current_teacher),
+):
     course_db = db.query(Course).filter(Course.id == course_id).first()
     if not course_db:
         raise HTTPException(status_code=404, detail="Курс не найден")

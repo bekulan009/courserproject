@@ -58,6 +58,7 @@ class User(Base):
     password = Column(String(255), nullable=False)
     role = Column(SQLEnum(UserRoleChoices), default=UserRoleChoices.student, nullable=False)
     user_status = Column(SQLEnum(UserStatusChoices), default=UserStatusChoices.free, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
@@ -114,6 +115,7 @@ class StudyGroup(Base):
     teacher_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     starts_on = Column(Date, nullable=False)
     ends_on = Column(Date, nullable=True)
+    capacity = Column(Integer, default=20, nullable=False)
     status = Column(SQLEnum(StudyGroupStatusChoices), default=StudyGroupStatusChoices.recruiting, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
